@@ -2,33 +2,36 @@ import BigNumber from 'bignumber.js'
 import React, { useCallback, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import { Button, Modal } from '@pancakeswap-libs/uikit'
-import { getFullDisplayBalance } from 'utils/formatBalance'
+import { getBalanceNumber, getFullDisplayBalance } from 'utils/formatBalance'
 import TicketInput from 'components/TicketInput'
 import ModalActions from 'components/ModalActions'
 import { useMultiBuyLottery, useMaxNumber } from 'hooks/useBuyLottery'
-import useI18n from 'hooks/useI18n'
+import { useTranslation } from 'contexts/Localization'
+import { LOTTERY_MAX_NUMBER_OF_TICKETS, LOTTERY_TICKET_PRICE } from 'config'
 
 interface BuyTicketModalProps {
   max: BigNumber
-  onConfirm?: (amount: string, numbers: Array<number>) => void
   onDismiss?: () => void
-  tokenName?: string
 }
 
 const BuyTicketModal: React.FC<BuyTicketModalProps> = ({ max, onDismiss }) => {
   const [val, setVal] = useState('1')
   const [pendingTx, setPendingTx] = useState(false)
   const [, setRequestedBuy] = useState(false)
-  const TranslateString = useI18n()
+  const { t } = useTranslation()
   const fullBalance = useMemo(() => {
-    return getFullDisplayBalance(max)
+    return getBalanceNumber(max)
   }, [max])
 
   const maxTickets = useMemo(() => {
-    return parseInt(getFullDisplayBalance(max.div(new BigNumber(10))))
+    return parseInt(getFullDisplayBalance(max.div(LOTTERY_TICKET_PRICE)), 10)
   }, [max])
 
-  const handleChange = (e: React.FormEvent<HTMLInputElement>) => setVal(e.currentTarget.value)
+  const handleChange = (e: React.FormEvent<HTMLInputElement>) => {
+    if (e.currentTarget.validity.valid) {
+      setVal(e.currentTarget.value)
+    }
+  }
 
   const { onMultiBuy } = useMultiBuyLottery()
   const maxNumber = useMaxNumber()
@@ -44,7 +47,7 @@ const BuyTicketModal: React.FC<BuyTicketModalProps> = ({ max, onDismiss }) => {
         Math.floor(Math.random() * maxNumber) + 1,
         Math.floor(Math.random() * maxNumber) + 1,
       ])
-      const txHash = await onMultiBuy('10', numbers)
+      const txHash = await onMultiBuy(LOTTERY_TICKET_PRICE.toString(), numbers)
       // user rejected tx or didn't go thru
       if (txHash) {
         setRequestedBuy(false)
@@ -55,47 +58,49 @@ const BuyTicketModal: React.FC<BuyTicketModalProps> = ({ max, onDismiss }) => {
   }, [onMultiBuy, setRequestedBuy, maxNumber, val])
 
   const handleSelectMax = useCallback(() => {
-    if (Number(maxTickets) > 50) {
-      setVal('50')
+    if (Number(maxTickets) > LOTTERY_MAX_NUMBER_OF_TICKETS) {
+      setVal(LOTTERY_MAX_NUMBER_OF_TICKETS.toString())
     } else {
       setVal(maxTickets.toString())
     }
   }, [maxTickets])
 
-  const cakeCosts = (amount: string): number => {
-    return +amount * 10
+  const veganCosts = (amount: string): number => {
+    return +amount * LOTTERY_TICKET_PRICE
   }
   return (
-    <Modal title={TranslateString(450, 'Enter amount of tickets to buy')} onDismiss={onDismiss}>
+    <Modal title={t('Enter amount of tickets to buy')} onDismiss={onDismiss}>
       <TicketInput
         value={val}
         onSelectMax={handleSelectMax}
         onChange={handleChange}
         max={fullBalance}
         symbol="TICKET"
-        availableSymbol="CAKE"
+        availableSymbol="VEGAN"
       />
       <div>
-        <Tips>{TranslateString(456, 'Your amount must be a multiple of 10 CAKE')}</Tips>
-        <Tips>{TranslateString(458, '1 Ticket = 10 CAKE')}</Tips>
+        <Tips>{t(`1 Ticket = ${LOTTERY_TICKET_PRICE} VEGAN`, { num: LOTTERY_TICKET_PRICE })}</Tips>
       </div>
       <div>
         <Announce>
-          {TranslateString(
-            478,
-            'Ticket purchases are final. Your CAKE cannot be returned to you after buying tickets.',
-          )}
+          {t('Ticket purchases are final. Your VEGAN cannot be returned to you after buying tickets.')}
         </Announce>
-        <Final>{TranslateString(460, `You will spend: ${cakeCosts(val)} CAKE`)}</Final>
+        <Final>{t('You will spend: %amount% VEGAN', { amount: veganCosts(val) })}</Final>
       </div>
       <ModalActions>
-        <Button fullWidth variant="secondary" onClick={onDismiss}>
-          {TranslateString(462, 'Cancel')}
+        <Button width="100%" variant="secondary" onClick={onDismiss}>
+          {t('Cancel')}
         </Button>
         <Button
           id="lottery-buy-complete"
-          fullWidth
-          disabled={pendingTx || parseInt(val) > Number(maxTickets) || parseInt(val) > 50 || parseInt(val) < 1}
+          width="100%"
+          disabled={
+            pendingTx ||
+            !Number.isInteger(parseInt(val)) ||
+            parseInt(val) > Number(maxTickets) ||
+            parseInt(val) > LOTTERY_MAX_NUMBER_OF_TICKETS ||
+            parseInt(val) < 1
+          }
           onClick={async () => {
             setPendingTx(true)
             await handleBuy()
@@ -103,7 +108,7 @@ const BuyTicketModal: React.FC<BuyTicketModalProps> = ({ max, onDismiss }) => {
             onDismiss()
           }}
         >
-          {pendingTx ? TranslateString(488, 'Pending Confirmation') : TranslateString(464, 'Confirm')}
+          {pendingTx ? t('Pending Confirmation') : t('Confirm')}
         </Button>
       </ModalActions>
     </Modal>

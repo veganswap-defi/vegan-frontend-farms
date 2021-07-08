@@ -1,13 +1,13 @@
+import BigNumber from 'bignumber.js'
 import React from 'react'
 import { Card, CardBody, Heading, Text } from '@pancakeswap-libs/uikit'
-import BigNumber from 'bignumber.js/bignumber'
 import styled from 'styled-components'
 import { getBalanceNumber } from 'utils/formatBalance'
-import { useTotalSupply, useBurnedBalance } from 'hooks/useTokenBalance'
-import useI18n from 'hooks/useI18n'
-import { getCakeAddress } from 'utils/addressHelpers'
+import { useTotalSupply, useBurnedBalance, useVeganPerBlock } from 'hooks/useTokenBalance'
+import { useTranslation } from 'contexts/Localization'
+import { getVeganAddress } from 'utils/addressHelpers'
+import { useFarms, usePriceVeganBusd } from 'state/hooks'
 import CardValue from './CardValue'
-import { useFarms, usePriceCakeBusd } from '../../../state/hooks'
 
 const StyledCakeStats = styled(Card)`
   margin-left: auto;
@@ -23,47 +23,31 @@ const Row = styled.div`
 `
 
 const CakeStats = () => {
-  const TranslateString = useI18n()
+  const { t } = useTranslation()
   const totalSupply = useTotalSupply()
-  const burnedBalance = useBurnedBalance(getCakeAddress())
-  const farms = useFarms()
-  const veganPrice = usePriceCakeBusd()
-  const circSupply = totalSupply ? totalSupply.minus(burnedBalance) : new BigNumber(0)
-  const cakeSupply = getBalanceNumber(circSupply)
-  const marketCap = veganPrice.times(circSupply)
-
-  let veganPerBlock = 0
-  if (farms && farms[0] && farms[0].veganPerBlock) {
-    veganPerBlock = new BigNumber(farms[0].veganPerBlock).div(new BigNumber(10).pow(18)).toNumber()
-  }
+  const burnedBalance = getBalanceNumber(useBurnedBalance(getVeganAddress()))
+  const veganSupply = totalSupply ? getBalanceNumber(totalSupply) - burnedBalance : 0
+  const veganPerBlock = useVeganPerBlock()
+  const veganPriceUsd = usePriceVeganBusd()
+  const marketCap = veganPriceUsd.times(veganSupply)
 
   return (
     <StyledCakeStats>
       <CardBody>
         <Heading size="xl" mb="24px">
-          {TranslateString(534, 'VEGAN Stats')}
+          {t('Vegan Stats')}
         </Heading>
         <Row>
-          <Text fontSize="14px">{TranslateString(10005, 'Market Cap')}</Text>
-          <CardValue fontSize="14px" value={getBalanceNumber(marketCap)} decimals={0} prefix="$" />
+          <Text fontSize="14px">{t('Market Cap')}</Text>
+          <CardValue fontSize="14px" decimals={0} prefix="$" value={marketCap.toNumber()} />
         </Row>
         <Row>
-          <Text fontSize="14px">{TranslateString(536, 'Total Minted')}</Text>
-          {totalSupply && <CardValue fontSize="14px" value={getBalanceNumber(totalSupply)} decimals={0} />}
+          <Text fontSize="14px">{t('Total VEGAN Supply')}</Text>
+          {veganSupply && <CardValue fontSize="14px" value={veganSupply} />}
         </Row>
         <Row>
-          <Text fontSize="14px">{TranslateString(538, 'Total Burned')}</Text>
-          <CardValue fontSize="14px" value={getBalanceNumber(burnedBalance)} decimals={0} />
-        </Row>
-        <Row>
-          <Text fontSize="14px">{TranslateString(10004, 'Circulating Supply')}</Text>
-          {cakeSupply && <CardValue fontSize="14px" value={cakeSupply} decimals={0} />}
-        </Row>
-        <Row>
-          <Text fontSize="14px">{TranslateString(540, 'New VEGAN/block')}</Text>
-          <Text bold fontSize="14px">
-            {veganPerBlock}
-          </Text>
+          <Text fontSize="14px">{t('New VEGAN/block')}</Text>
+          <CardValue fontSize="14px" decimals={0} value={veganPerBlock.toNumber()} />
         </Row>
       </CardBody>
     </StyledCakeStats>

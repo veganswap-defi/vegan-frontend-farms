@@ -1,40 +1,44 @@
 import React from 'react'
 import styled from 'styled-components'
 import { Heading, Text, BaseLayout } from '@pancakeswap-libs/uikit'
-import useI18n from 'hooks/useI18n'
+import { useTranslation } from 'contexts/Localization'
 import Page from 'components/layout/Page'
-import FarmStakingCard from './components/FarmStakingCard'
-import LotteryCard from './components/LotteryCard'
-import CakeStats from './components/CakeStats'
-import TotalValueLockedCard from './components/TotalValueLockedCard'
-import TwitterCard from './components/TwitterCard'
+import FarmStakingCard from 'views/Home/components/FarmStakingCard'
+import LotteryCard from 'views/Home/components/LotteryCard'
+import TwitterCard from 'views/Home/components/TwitterCard'
+import CakeStats from 'views/Home/components/CakeStats'
+import TotalValueLockedCard from 'views/Home/components/TotalValueLockedCard'
+import EarnAPRCard from 'views/Home/components/EarnAPRCard'
+import EarnAssetCard from 'views/Home/components/EarnAssetCard'
+import WinCard from 'views/Home/components/WinCard'
 
 const Hero = styled.div`
-  align-items: center;
-  background-image: url('/images/vegan/vegan-3.svg');
-  background-repeat: no-repeat;
-  background-position: top center;
+  /* align-items: center; */
+  /* background: url('/images/banner.png') no-repeat center; */
+  /* background-size: cover; */
+  /* background-repeat: no-repeat; */
+  /* background-position: top center; */
   display: flex;
   justify-content: center;
   flex-direction: column;
   margin: auto;
   margin-bottom: 32px;
-  padding-top: 116px;
+  /* padding-top: 116px; */
+  /* height: 200px; */
   text-align: center;
 
-  ${({ theme }) => theme.mediaQueries.lg} {
-    background-image: url('/images/vegan/vegan-3.svg'), url('/images/vegan/vegan-2.svg');
-    background-size: contain;
+  /* ${({ theme }) => theme.mediaQueries.lg} {
+    background-image: url('/images/pan-bg2.svg'), url('/images/pan-bg.svg');
     background-position: left center, right center;
     height: 165px;
     padding-top: 0;
-  }
+  } */
 `
 
 const Cards = styled(BaseLayout)`
   align-items: stretch;
   justify-content: stretch;
-  margin-bottom: 48px;
+  margin-bottom: 32px;
 
   & > div {
     grid-column: span 6;
@@ -54,32 +58,61 @@ const Cards = styled(BaseLayout)`
   }
 `
 
-const StyledHeading = styled(Heading)`
-  ${({ theme }) => theme.mediaQueries.xs} {
-    position: relative;
-    bottom: 135px;
+const CTACards = styled(BaseLayout)`
+  align-items: start;
+  margin-bottom: 32px;
+
+  & > div {
+    grid-column: span 6;
   }
-  
+
+  ${({ theme }) => theme.mediaQueries.sm} {
+    & > div {
+      grid-column: span 8;
+    }
+  }
+
   ${({ theme }) => theme.mediaQueries.lg} {
-    bottom: 0;
+    & > div {
+      grid-column: span 6;
+    }
+  }
+`
+
+const ImgWrapper = styled.section`
+  border-radius: 32px;
+  overflow: hidden;
+  display: flex;
+  img {
+    max-height: 220px;
   }
 `
 
 const Home: React.FC = () => {
-  const TranslateString = useI18n()
+  const { t } = useTranslation()
 
   return (
     <Page>
       <Hero>
-        <StyledHeading as="h1" size="xl" mb="24px" color="primary">
-          {TranslateString(576, 'Vegan Finance')}
-        </StyledHeading>
-        <Text>{TranslateString(578, 'The most natural and healthy DEFI app on Binance Smart Chain')}</Text>
+        <ImgWrapper>
+          <img src="/images/banner.png" alt="vegan banner" />
+        </ImgWrapper>
+        {/* <Heading as="h1" size="xl" mb="24px" color="secondary">
+          {t('VeganSwap')}
+        </Heading>
+        <Text>{t('The #1 AMM and yield farm on Binance Smart Chain.')}</Text> */}
       </Hero>
       <div>
         <Cards>
           <FarmStakingCard />
           <TwitterCard />
+        </Cards>
+        <CTACards>
+          <EarnAPRCard />
+          <EarnAssetCard />
+          {/* <WinCard /> */}
+        </CTACards>
+        <Cards>
           <CakeStats />
           <TotalValueLockedCard />
         </Cards>

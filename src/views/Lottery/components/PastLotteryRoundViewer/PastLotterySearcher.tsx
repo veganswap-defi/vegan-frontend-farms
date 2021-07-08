@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { Text, Input, Button } from '@pancakeswap-libs/uikit'
-import useI18n from 'hooks/useI18n'
+import { useTranslation } from 'contexts/Localization'
 
 interface PastLotterySearcherProps {
   initialLotteryNumber: number
@@ -15,6 +15,17 @@ const Wrapper = styled.div`
 const SearchWrapper = styled.div`
   position: relative;
 `
+const InputWrapper = styled.div`
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Firefox */
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+`
 
 const ButtonWrapper = styled.div`
   position: absolute;
@@ -27,7 +38,7 @@ const ButtonWrapper = styled.div`
 const PastLotterySearcher: React.FC<PastLotterySearcherProps> = ({ initialLotteryNumber, onSubmit }) => {
   const [lotteryNumber, setLotteryNumber] = useState(initialLotteryNumber)
   const [isError, setIsError] = useState(false)
-  const TranslateString = useI18n()
+  const { t } = useTranslation()
 
   const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault()
@@ -35,29 +46,37 @@ const PastLotterySearcher: React.FC<PastLotterySearcherProps> = ({ initialLotter
   }
 
   const handleChange = (evt: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(evt.currentTarget.value, 10)
+    if (evt.currentTarget.value) {
+      const value = parseInt(evt.currentTarget.value, 10)
 
-    // The max value will always be the initialLotterNumber which equals
-    // the latest lottery round
-    setIsError(value > initialLotteryNumber)
-    setLotteryNumber(value)
+      // The max value will always be the initialLotteryNumber which equals
+      // the latest lottery round
+      setIsError(value > initialLotteryNumber)
+      setLotteryNumber(value)
+    } else {
+      setLotteryNumber(initialLotteryNumber)
+    }
   }
 
   return (
     <Wrapper>
-      <Text>{TranslateString(999, 'Select lottery number:')}</Text>
+      <Text>{t('Select lottery number:')}</Text>
       <form onSubmit={handleSubmit}>
         <SearchWrapper>
-          <Input
-            value={lotteryNumber}
-            type="number"
-            isWarning={isError}
-            max={initialLotteryNumber}
-            onChange={handleChange}
-          />
+          <InputWrapper>
+            <Input
+              value={lotteryNumber}
+              type="number"
+              inputMode="numeric"
+              min="0"
+              isWarning={isError}
+              max={initialLotteryNumber}
+              onChange={handleChange}
+            />
+          </InputWrapper>
           <ButtonWrapper>
-            <Button type="submit" size="sm" disabled={isError}>
-              {TranslateString(999, 'Search')}
+            <Button type="submit" scale="sm" disabled={isError}>
+              {t('Search')}
             </Button>
           </ButtonWrapper>
         </SearchWrapper>

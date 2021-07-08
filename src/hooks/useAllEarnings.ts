@@ -1,15 +1,14 @@
-import BigNumber from 'bignumber.js'
 import { useEffect, useState } from 'react'
-import { useWallet } from '@binance-chain/bsc-use-wallet'
+import { useWeb3React } from '@web3-react/core'
 import multicall from 'utils/multicall'
 import { getMasterChefAddress } from 'utils/addressHelpers'
 import masterChefABI from 'config/abi/masterchef.json'
-import { farmsConfig, usersBlacklist } from 'config/constants'
+import { farmsConfig } from 'config/constants'
 import useRefresh from './useRefresh'
 
 const useAllEarnings = () => {
   const [balances, setBalance] = useState([])
-  const { account }: { account: string } = useWallet()
+  const { account } = useWeb3React()
   const { fastRefresh } = useRefresh()
 
   useEffect(() => {
@@ -29,10 +28,6 @@ const useAllEarnings = () => {
       fetchAllBalances()
     }
   }, [account, fastRefresh])
-
-  if (usersBlacklist.includes(account)) {
-    return [new BigNumber(0)]
-  }
 
   return balances
 }

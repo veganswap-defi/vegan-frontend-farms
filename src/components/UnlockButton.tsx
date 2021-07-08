@@ -1,16 +1,16 @@
 import React from 'react'
 import { Button, useWalletModal } from '@pancakeswap-libs/uikit'
-import { useWallet } from '@binance-chain/bsc-use-wallet'
-import useI18n from 'hooks/useI18n'
+import useAuth from 'hooks/useAuth'
+import { useTranslation } from 'contexts/Localization'
 
 const UnlockButton = (props) => {
-  const TranslateString = useI18n()
-  const { connect, reset } = useWallet()
-  const { onPresentConnectModal } = useWalletModal(connect, reset)
+  const { t } = useTranslation()
+  const { login, logout } = useAuth()
+  const { onPresentConnectModal } = useWalletModal(login, logout)
 
   return (
     <Button onClick={onPresentConnectModal} {...props}>
-      {TranslateString(292, 'Unlock Wallet')}
+      {t('Unlock Wallet')}
     </Button>
   )
 }

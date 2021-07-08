@@ -2,7 +2,6 @@ import React, { useContext, useRef } from 'react'
 import IframeResizer from 'iframe-resizer-react'
 import useWindowDimensions from 'hooks/useWindowDimension'
 import { ThemeContext } from '../../contexts/ThemeContext'
-import { LanguageContext } from '../../contexts/Localisation/languageContext'
 
 interface IFrameProps {
   url: string
@@ -13,12 +12,11 @@ const IFrame: React.FC<IFrameProps> = (props) => {
   const { url, title } = props
   const iframeRef = useRef(null)
   const { isDark } = useContext(ThemeContext)
-  const { selectedLanguage } = useContext(LanguageContext)
   const { height } = useWindowDimensions()
   const sendSettings = (e) => {
     const payload = {
       isDark,
-      selectedLanguage,
+      selectedLanguage: 'en',
     }
     iframeRef.current.sendMessage(payload)
   }

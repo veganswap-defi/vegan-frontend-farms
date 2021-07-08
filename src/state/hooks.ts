@@ -1,27 +1,48 @@
-import BigNumber from 'bignumber.js'
 import { useEffect, useMemo } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import BigNumber from 'bignumber.js'
+import { useWeb3React } from '@web3-react/core'
+import { useSelector } from 'react-redux'
+import { useAppDispatch } from 'state'
+import { orderBy } from 'lodash'
+import { Team } from 'config/constants/types'
+import tokens from 'config/constants/tokens'
+import Nfts from 'config/constants/nfts'
+import { getWeb3NoAccount } from 'utils/web3'
+import { getAddress } from 'utils/addressHelpers'
+import { getBalanceNumber } from 'utils/formatBalance'
+import { BIG_ZERO } from 'utils/bigNumber'
 import useRefresh from 'hooks/useRefresh'
-import { fetchFarmsPublicDataAsync, fetchPoolsPublicDataAsync, fetchPoolsUserDataAsync } from './actions'
-import { State, Farm, Pool } from './types'
-import { QuoteToken } from '../config/constants/types'
-import { usersBlacklist } from '../config/constants'
-
-const ZERO = new BigNumber(0)
+import { fetchFarmsPublicDataAsync, fetchPoolsPublicDataAsync, fetchPoolsUserDataAsync, setBlock } from './actions'
+import { State, Farm, Pool, ProfileState, TeamsState, AchievementState, PriceState, FarmsState } from './types'
+import { fetchProfile } from './profile'
+import { fetchTeam, fetchTeams } from './teams'
+import { fetchAchievements } from './achievements'
+import { fetchPrices } from './prices'
+import { fetchWalletNfts } from './collectibles'
 
 export const useFetchPublicData = () => {
-  const dispatch = useDispatch()
+  const dispatch = useAppDispatch()
   const { slowRefresh } = useRefresh()
   useEffect(() => {
     dispatch(fetchFarmsPublicDataAsync())
-    // dispatch(fetchPoolsPublicDataAsync())
+    dispatch(fetchPoolsPublicDataAsync())
   }, [dispatch, slowRefresh])
+
+  useEffect(() => {
+    const web3 = getWeb3NoAccount()
+    const interval = setInterval(async () => {
+      const blockNumber = await web3.eth.getBlockNumber()
+      dispatch(setBlock(blockNumber))
+    }, 6000)
+
+    return () => clearInterval(interval)
+  }, [dispatch])
 }
 
 // Farms
 
-export const useFarms = (): Farm[] => {
-  const farms = useSelector((state: State) => state.farms.data)
+export const useFarms = (): FarmsState => {
+  const farms = useSelector((state: State) => state.farms)
   return farms
 }
 
@@ -35,31 +56,31 @@ export const useFarmFromSymbol = (lpSymbol: string): Farm => {
   return farm
 }
 
-export const useFarmUser = (pid, account: string | undefined) => {
+export const useFarmUser = (pid) => {
   const farm = useFarmFromPid(pid)
 
-  if (usersBlacklist.includes(account)) {
-    return {
-      allowance: new BigNumber(0),
-      tokenBalance: new BigNumber(0),
-      stakedBalance: new BigNumber(0),
-      earnings: new BigNumber(0),
-    }
-  }
-
   return {
-    allowance: farm.userData ? new BigNumber(farm.userData.allowance) : new BigNumber(0),
-    tokenBalance: farm.userData ? new BigNumber(farm.userData.tokenBalance) : new BigNumber(0),
-    stakedBalance: farm.userData ? new BigNumber(farm.userData.stakedBalance) : new BigNumber(0),
-    earnings: farm.userData ? new BigNumber(farm.userData.earnings) : new BigNumber(0),
+    allowance: farm.userData ? new BigNumber(farm.userData.allowance) : BIG_ZERO,
+    tokenBalance: farm.userData ? new BigNumber(farm.userData.tokenBalance) : BIG_ZERO,
+    stakedBalance: farm.userData ? new BigNumber(farm.userData.stakedBalance) : BIG_ZERO,
+    earnings: farm.userData ? new BigNumber(farm.userData.earnings) : BIG_ZERO,
   }
+}
+
+export const useLpTokenPrice = (symbol: string) => {
+  const farm = useFarmFromSymbol(symbol)
+  const tokenPriceInUsd = useGetApiPrice(getAddress(farm.token.address))
+
+  return farm.lpTotalSupply && farm.lpTotalInQuoteToken
+    ? new BigNumber(getBalanceNumber(farm.lpTotalSupply)).div(farm.lpTotalInQuoteToken).times(tokenPriceInUsd).times(2)
+    : BIG_ZERO
 }
 
 // Pools
 
 export const usePools = (account): Pool[] => {
   const { fastRefresh } = useRefresh()
-  const dispatch = useDispatch()
+  const dispatch = useAppDispatch()
   useEffect(() => {
     if (account) {
       dispatch(fetchPoolsUserDataAsync(account))
@@ -67,6 +88,7 @@ export const usePools = (account): Pool[] => {
   }, [account, dispatch, fastRefresh])
 
   const pools = useSelector((state: State) => state.pools.data)
+  // console.log({ pools })
   return pools
 }
 
@@ -75,36 +97,244 @@ export const usePoolFromPid = (sousId): Pool => {
   return pool
 }
 
-// Prices
+// Profile
 
-export const usePriceBnbBusd = (): BigNumber => {
-  const pid = 2 // BUSD-BNB LP
-  const farm = useFarmFromPid(pid)
-  return farm.tokenPriceVsQuote ? new BigNumber(farm.tokenPriceVsQuote) : ZERO
+export const useFetchProfile = () => {
+  const { account } = useWeb3React()
+  const dispatch = useAppDispatch()
+
+  useEffect(() => {
+    dispatch(fetchProfile(account))
+  }, [account, dispatch])
 }
 
-export const usePriceCakeBusd = (): BigNumber => {
-  // const pid = 1 // CAKE-BNB LP
-  // const bnbPriceUSD = usePriceBnbBusd()
-  // const farm = useFarmFromPid(pid)
-  // return farm.tokenPriceVsQuote ? bnbPriceUSD.times(farm.tokenPriceVsQuote) : ZERO
-  const pid = 0 // VEGAN-BUSD LP
-  const farm = useFarmFromPid(pid)
-  return farm.tokenPriceVsQuote ? new BigNumber(farm.tokenPriceVsQuote) : ZERO
+export const useProfile = () => {
+  const { isInitialized, isLoading, data, hasRegistered }: ProfileState = useSelector((state: State) => state.profile)
+  return { profile: data, hasProfile: isInitialized && hasRegistered, isInitialized, isLoading }
+}
+
+// Teams
+
+export const useTeam = (id: number) => {
+  const team: Team = useSelector((state: State) => state.teams.data[id])
+  const dispatch = useAppDispatch()
+
+  useEffect(() => {
+    dispatch(fetchTeam(id))
+  }, [id, dispatch])
+
+  return team
+}
+
+export const useTeams = () => {
+  const { isInitialized, isLoading, data }: TeamsState = useSelector((state: State) => state.teams)
+  const dispatch = useAppDispatch()
+
+  useEffect(() => {
+    dispatch(fetchTeams())
+  }, [dispatch])
+
+  return { teams: data, isInitialized, isLoading }
+}
+
+// Achievements
+
+export const useFetchAchievements = () => {
+  const { account } = useWeb3React()
+  const dispatch = useAppDispatch()
+
+  useEffect(() => {
+    if (account) {
+      dispatch(fetchAchievements(account))
+    }
+  }, [account, dispatch])
+}
+
+export const useAchievements = () => {
+  const achievements: AchievementState['data'] = useSelector((state: State) => state.achievements.data)
+  return achievements
+}
+
+// Prices
+export const useFetchPriceList = () => {
+  const { slowRefresh } = useRefresh()
+  const dispatch = useAppDispatch()
+
+  useEffect(() => {
+    dispatch(fetchPrices())
+  }, [dispatch, slowRefresh])
+}
+
+export const useGetApiPrices = () => {
+  const prices: PriceState['data'] = useSelector((state: State) => state.prices.data)
+  return prices
+}
+
+export const useGetApiPrice = (address: string) => {
+  const veganPriceBusd = usePriceVeganBusd()
+  const prices = useGetApiPrices()
+
+  if (address === getAddress(tokens.vegan.address)) {
+    return veganPriceBusd.toNumber()
+  }
+
+  if (!prices) {
+    return null
+  }
+
+  return prices[address.toLowerCase()]
+}
+
+export const usePriceBnbBusd = (): BigNumber => {
+  const bnbBusdFarm = useFarmFromPid(2)
+  return bnbBusdFarm.tokenPriceVsQuote ? new BigNumber(1).div(bnbBusdFarm.tokenPriceVsQuote) : BIG_ZERO
+}
+
+export const usePriceVeganBusd = (): BigNumber => {
+  const veganBnbFarm = useFarmFromPid(1)
+  const bnbBusdPrice = usePriceBnbBusd()
+
+  // console.log({veganBnbFarm, bnbBusdPrice})
+
+  const veganBusdPrice = veganBnbFarm.tokenPriceVsQuote ? bnbBusdPrice.times(veganBnbFarm.tokenPriceVsQuote) : BIG_ZERO
+
+  return veganBusdPrice
+}
+
+// Block
+export const useBlock = () => {
+  return useSelector((state: State) => state.block)
+}
+
+export const useInitialBlock = () => {
+  return useSelector((state: State) => state.block.initialBlock)
+}
+
+// Predictions
+export const useIsHistoryPaneOpen = () => {
+  return useSelector((state: State) => state.predictions.isHistoryPaneOpen)
+}
+
+export const useIsChartPaneOpen = () => {
+  return useSelector((state: State) => state.predictions.isChartPaneOpen)
+}
+
+export const useGetRounds = () => {
+  return useSelector((state: State) => state.predictions.rounds)
+}
+
+export const useGetSortedRounds = () => {
+  const roundData = useGetRounds()
+  return orderBy(Object.values(roundData), ['epoch'], ['asc'])
+}
+
+export const useGetCurrentEpoch = () => {
+  return useSelector((state: State) => state.predictions.currentEpoch)
+}
+
+export const useGetIntervalBlocks = () => {
+  return useSelector((state: State) => state.predictions.intervalBlocks)
+}
+
+export const useGetBufferBlocks = () => {
+  return useSelector((state: State) => state.predictions.bufferBlocks)
+}
+
+export const useGetTotalIntervalBlocks = () => {
+  const intervalBlocks = useGetIntervalBlocks()
+  const bufferBlocks = useGetBufferBlocks()
+  return intervalBlocks + bufferBlocks
+}
+
+export const useGetRound = (id: string) => {
+  const rounds = useGetRounds()
+  return rounds[id]
+}
+
+export const useGetCurrentRound = () => {
+  const currentEpoch = useGetCurrentEpoch()
+  const rounds = useGetSortedRounds()
+  return rounds.find((round) => round.epoch === currentEpoch)
+}
+
+export const useGetPredictionsStatus = () => {
+  return useSelector((state: State) => state.predictions.status)
+}
+
+export const useGetHistoryFilter = () => {
+  return useSelector((state: State) => state.predictions.historyFilter)
+}
+
+export const useGetCurrentRoundBlockNumber = () => {
+  return useSelector((state: State) => state.predictions.currentRoundStartBlockNumber)
+}
+
+export const useGetMinBetAmount = () => {
+  const minBetAmount = useSelector((state: State) => state.predictions.minBetAmount)
+  return useMemo(() => new BigNumber(minBetAmount), [minBetAmount])
+}
+
+export const useGetIsFetchingHistory = () => {
+  return useSelector((state: State) => state.predictions.isFetchingHistory)
+}
+
+export const useGetHistory = () => {
+  return useSelector((state: State) => state.predictions.history)
+}
+
+export const useGetHistoryByAccount = (account: string) => {
+  const bets = useGetHistory()
+  return bets ? bets[account] : []
+}
+
+export const useGetBetByRoundId = (account: string, roundId: string) => {
+  const bets = useSelector((state: State) => state.predictions.bets)
+
+  if (!bets[account]) {
+    return null
+  }
+
+  if (!bets[account][roundId]) {
+    return null
+  }
+
+  return bets[account][roundId]
+}
+
+// Collectibles
+export const useGetCollectibles = () => {
+  const { account } = useWeb3React()
+  const dispatch = useAppDispatch()
+  const { isInitialized, isLoading, data } = useSelector((state: State) => state.collectibles)
+  const identifiers = Object.keys(data)
+
+  useEffect(() => {
+    // Fetch nfts only if we have not done so already
+    if (!isInitialized) {
+      dispatch(fetchWalletNfts(account))
+    }
+  }, [isInitialized, account, dispatch])
+
+  return {
+    isInitialized,
+    isLoading,
+    tokenIds: data,
+    nftsInWallet: Nfts.filter((nft) => identifiers.includes(nft.identifier)),
+  }
 }
 
 export const useTotalValue = (): BigNumber => {
   const farms = useFarms()
   const bnbPrice = usePriceBnbBusd()
-  const cakePrice = usePriceCakeBusd()
+  const cakePrice = usePriceVeganBusd()
   let value = new BigNumber(0)
-  for (let i = 0; i < farms.length; i++) {
-    const farm = farms[i]
+  for (let i = 0; i < farms.data.length; i++) {
+    const farm = farms.data[i]
     if (farm.lpTotalInQuoteToken) {
-      let val
-      if (farm.quoteTokenSymbol === QuoteToken.BNB) {
+      let val: BigNumber
+      if (farm.quoteToken.symbol === tokens.wbnb.symbol) {
         val = bnbPrice.times(farm.lpTotalInQuoteToken)
-      } else if (farm.quoteTokenSymbol === QuoteToken.CAKE) {
+      } else if (farm.quoteToken.symbol === tokens.vegan.symbol) {
         val = cakePrice.times(farm.lpTotalInQuoteToken)
       } else {
         val = farm.lpTotalInQuoteToken
@@ -112,5 +342,6 @@ export const useTotalValue = (): BigNumber => {
       value = value.plus(val)
     }
   }
+
   return value
 }

@@ -1,26 +1,54 @@
 import React from 'react'
 import styled from 'styled-components'
-import { useRouteMatch, Link } from 'react-router-dom'
-import { ButtonMenu, ButtonMenuItem, Text, Toggle } from '@pancakeswap-libs/uikit'
-import useI18n from 'hooks/useI18n'
+import { useLocation, Link, useRouteMatch } from 'react-router-dom'
+import { ButtonMenu, ButtonMenuItem, NotificationDot } from '@pancakeswap-libs/uikit'
+import { useTranslation } from 'contexts/Localization'
 
-const FarmTabButtons = ({ stakedOnly, setStakedOnly }) => {
-  const { url, isExact } = useRouteMatch()
-  const TranslateString = useI18n()
+interface FarmTabButtonsProps {
+  hasStakeInFinishedFarms: boolean
+  hasStakeInArchivedFarms: boolean
+}
+
+const FarmTabButtons: React.FC<FarmTabButtonsProps> = ({ hasStakeInFinishedFarms, hasStakeInArchivedFarms }) => {
+  const { url } = useRouteMatch()
+  const location = useLocation()
+  const { t } = useTranslation()
+
+  let activeIndex
+  switch (location.pathname) {
+    case '/farms':
+    case '/pools':
+      activeIndex = 0
+      break
+    case '/farms/history':
+    case '/pools/history':
+      activeIndex = 1
+      break
+    case '/farms/archived':
+    case '/pools/archived':
+      activeIndex = 2
+      break
+    default:
+      activeIndex = 0
+      break
+  }
 
   return (
     <Wrapper>
-      <ToggleWrapper>
-        <Toggle checked={stakedOnly} onChange={() => setStakedOnly(!stakedOnly)} />
-        <Text> {TranslateString(699, 'Staked only')}</Text>
-      </ToggleWrapper>
-      <ButtonMenu activeIndex={isExact ? 0 : 1} size="sm" variant="subtle">
+      <ButtonMenu activeIndex={activeIndex} scale="sm" variant="subtle">
         <ButtonMenuItem as={Link} to={`${url}`}>
-          {TranslateString(698, 'Active')}
+          {t('Live')}
         </ButtonMenuItem>
-        <ButtonMenuItem as={Link} to={`${url}/history`}>
-          {TranslateString(700, 'Inactive')}
-        </ButtonMenuItem>
+        <NotificationDot show={hasStakeInFinishedFarms}>
+          <ButtonMenuItem as={Link} to={`${url}/history`}>
+            {t('Finished')}
+          </ButtonMenuItem>
+        </NotificationDot>
+        {/* <NotificationDot show={hasStakeInArchivedFarms}>
+          <ButtonMenuItem as={Link} to={`${url}/archived`}>
+            {t('Discontinued')}
+          </ButtonMenuItem>
+        </NotificationDot> */}
       </ButtonMenu>
     </Wrapper>
   )
@@ -32,16 +60,13 @@ const Wrapper = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 32px;
-`
 
-const ToggleWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-right: 32px;
+  a {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 
-  ${Text} {
-    margin-left: 8px;
+  ${({ theme }) => theme.mediaQueries.sm} {
+    margin-left: 16px;
   }
 `

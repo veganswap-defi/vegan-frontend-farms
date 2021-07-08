@@ -2,31 +2,33 @@ import React, { useMemo, useState } from 'react'
 import BigNumber from 'bignumber.js'
 import styled, { keyframes } from 'styled-components'
 import { Flex, Text, Skeleton } from '@pancakeswap-libs/uikit'
-import { communityFarms } from 'config/constants'
 import { Farm } from 'state/types'
-import { provider } from 'web3-core'
-import useI18n from 'hooks/useI18n'
+import { provider as ProviderType } from 'web3-core'
+import tokens from 'config/constants/tokens'
+import { useTranslation } from 'contexts/Localization'
 import ExpandableSectionButton from 'components/ExpandableSectionButton'
-import { QuoteToken } from 'config/constants/types'
+import { BASE_ADD_LIQUIDITY_URL } from 'config'
+import getLiquidityUrlPathParts from 'utils/getLiquidityUrlPathParts'
 import DetailsSection from './DetailsSection'
 import CardHeading from './CardHeading'
 import CardActionsContainer from './CardActionsContainer'
 import ApyButton from './ApyButton'
 
 export interface FarmWithStakedValue extends Farm {
-  apy?: BigNumber
+  apr?: number
+  liquidity?: BigNumber
 }
 
 const RainbowLight = keyframes`
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
 `
 
 const StyledCardAccent = styled.div`
@@ -46,7 +48,7 @@ const StyledCardAccent = styled.div`
   );
   background-size: 300% 300%;
   animation: ${RainbowLight} 2s linear infinite;
-  border-radius: 16px;
+  border-radius: 32px;
   filter: blur(6px);
   position: absolute;
   top: -2px;
@@ -84,79 +86,69 @@ const ExpandingWrapper = styled.div<{ expanded: boolean }>`
 interface FarmCardProps {
   farm: FarmWithStakedValue
   removed: boolean
-  cakePrice?: BigNumber
   bnbPrice?: BigNumber
-  ethereum?: provider
+  veganPrice?: BigNumber
+  provider?: ProviderType
   account?: string
 }
 
-const FarmCard: React.FC<FarmCardProps> = ({ farm, removed, cakePrice, bnbPrice, ethereum, account }) => {
-  const TranslateString = useI18n()
+const FarmCard: React.FC<FarmCardProps> = ({ farm, removed, bnbPrice, veganPrice, account }) => {
+  const { t } = useTranslation()
 
   const [showExpandableSection, setShowExpandableSection] = useState(false)
 
-  // const isCommunityFarm = communityFarms.includes(farm.tokenSymbol)
-  // We assume the token name is coin pair + lp e.g. CAKE-BNB LP, LINK-BNB LP,
-  // NAR-CAKE LP. The images should be cake-bnb.svg, link-bnb.svg, nar-cake.svg
+  // We assume the token name is coin pair + lp e.g. VEGAN-BNB LP, LINK-BNB LP,
+  // NAR-VEGAN LP. The images should be cake-bnb.svg, link-bnb.svg, nar-vegan.svg
   const farmImage = farm.lpSymbol.split(' ')[0].toLocaleLowerCase()
-  // const farmImage = farm.isTokenOnly
-  //   ? farm.tokenSymbol.toLowerCase()
-  //   : `${farm.tokenSymbol.toLowerCase()}-${farm.quoteTokenSymbol.toLowerCase()}`
 
   const totalValue: BigNumber = useMemo(() => {
     if (!farm.lpTotalInQuoteToken) {
       return null
     }
-    if (farm.quoteTokenSymbol === QuoteToken.BNB) {
+    if (farm.quoteToken.symbol === tokens.wbnb.symbol) {
       return bnbPrice.times(farm.lpTotalInQuoteToken)
     }
-    if (farm.quoteTokenSymbol === QuoteToken.CAKE) {
-      return cakePrice.times(farm.lpTotalInQuoteToken)
+    if (farm.quoteToken.symbol === tokens.vegan.symbol) {
+      return veganPrice.times(farm.lpTotalInQuoteToken)
     }
     return farm.lpTotalInQuoteToken
-  }, [bnbPrice, cakePrice, farm.lpTotalInQuoteToken, farm.quoteTokenSymbol])
+  }, [bnbPrice, veganPrice, farm.lpTotalInQuoteToken, farm.quoteToken.symbol])
 
-  const totalValueFormated = totalValue
+  const totalValueFormatted = totalValue
     ? `$${Number(totalValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
     : '-'
 
-  const lpLabel = farm.lpSymbol
-  const earnLabel = 'VEGAN'
-  const farmAPY =
-    farm.apy &&
-    farm.apy.times(new BigNumber(100)).toNumber().toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
+  const lpLabel = farm.lpSymbol && farm.lpSymbol.toUpperCase().replace('PANCAKE', '')
+  const earnLabel = farm.dual ? farm.dual.earnLabel : 'VEGAN'
 
-  const { quoteTokenAdresses, quoteTokenSymbol, tokenAddresses, risk } = farm
+  const farmAPR = farm.apr && farm.apr.toLocaleString('en', { maximumFractionDigits: 2 })
+
+  const liquidityUrlPathParts = getLiquidityUrlPathParts({
+    quoteTokenAddress: farm.quoteToken.address,
+    tokenAddress: farm.token.address,
+  })
+  const addLiquidityUrl = `${BASE_ADD_LIQUIDITY_URL}/${liquidityUrlPathParts}`
+  const lpAddress = farm.lpAddresses[process.env.REACT_APP_CHAIN_ID]
 
   return (
     <FCard>
-      {/* {farm.tokenSymbol === 'VEGAN' && <StyledCardAccent />} */}
+      {/* {farm.token.symbol === tokens.vegan.symbol && <StyledCardAccent />} */}
       <CardHeading
         lpLabel={lpLabel}
         multiplier={farm.multiplier}
-        risk={risk}
-        depositFee={farm.depositFeeBP}
+        isCommunityFarm={farm.isCommunity}
         farmImage={farmImage}
-        tokenSymbol={farm.tokenSymbol}
+        tokenSymbol={farm.token.symbol}
+        depositFee={farm.depositFeeBP}
       />
       {!removed && (
         <Flex justifyContent="space-between" alignItems="center">
-          <Text>{TranslateString(352, 'APR')}:</Text>
+          <Text>{t('APR')}:</Text>
           <Text bold style={{ display: 'flex', alignItems: 'center' }}>
-            {farm.apy ? (
+            {farm.apr ? (
               <>
-                <ApyButton
-                  lpLabel={lpLabel}
-                  quoteTokenAdresses={quoteTokenAdresses}
-                  quoteTokenSymbol={quoteTokenSymbol}
-                  tokenAddresses={tokenAddresses}
-                  cakePrice={cakePrice}
-                  apy={farm.apy}
-                />
-                {farmAPY}%
+                <ApyButton lpLabel={lpLabel} addLiquidityUrl={addLiquidityUrl} veganPrice={veganPrice} apr={farm.apr} />
+                {farmAPR}%
               </>
             ) : (
               <Skeleton height={24} width={80} />
@@ -165,16 +157,10 @@ const FarmCard: React.FC<FarmCardProps> = ({ farm, removed, cakePrice, bnbPrice,
         </Flex>
       )}
       <Flex justifyContent="space-between">
-        <Text>{TranslateString(318, 'Earn')}:</Text>
+        <Text>{t('Earn')}:</Text>
         <Text bold>{earnLabel}</Text>
       </Flex>
-      <Flex justifyContent="space-between">
-        <Text style={{ fontSize: '24px' }}>{TranslateString(10001, 'Deposit Fee')}:</Text>
-        <Text bold style={{ fontSize: '24px' }}>
-          {farm.depositFeeBP / 100}%
-        </Text>
-      </Flex>
-      <CardActionsContainer farm={farm} ethereum={ethereum} account={account} />
+      <CardActionsContainer farm={farm} account={account} addLiquidityUrl={addLiquidityUrl} />
       <Divider />
       <ExpandableSectionButton
         onClick={() => setShowExpandableSection(!showExpandableSection)}
@@ -183,17 +169,12 @@ const FarmCard: React.FC<FarmCardProps> = ({ farm, removed, cakePrice, bnbPrice,
       <ExpandingWrapper expanded={showExpandableSection}>
         <DetailsSection
           removed={removed}
-          isTokenOnly={farm.isTokenOnly}
-          bscScanAddress={
-            farm.isTokenOnly
-              ? `https://bscscan.com/token/${farm.tokenAddresses[process.env.REACT_APP_CHAIN_ID]}`
-              : `https://bscscan.com/token/${farm.lpAddresses[process.env.REACT_APP_CHAIN_ID]}`
-          }
-          totalValueFormated={totalValueFormated}
+          bscScanAddress={`https://bscscan.com/address/${farm.lpAddresses[process.env.REACT_APP_CHAIN_ID]}`}
+          infoAddress={`https://pancakeswap.info/pair/${lpAddress}`}
+          totalValueFormatted={totalValueFormatted}
           lpLabel={lpLabel}
-          quoteTokenAdresses={quoteTokenAdresses}
-          quoteTokenSymbol={quoteTokenSymbol}
-          tokenAddresses={tokenAddresses}
+          addLiquidityUrl={addLiquidityUrl}
+          depositFee={farm.depositFeeBP}
         />
       </ExpandingWrapper>
     </FCard>

@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import styled from 'styled-components'
 import { Button, Heading, Won, useModal } from '@pancakeswap-libs/uikit'
-import useI18n from 'hooks/useI18n'
+import { useTranslation } from 'contexts/Localization'
 import { getBalanceNumber } from 'utils/formatBalance'
 import { useMultiClaimLottery } from 'hooks/useBuyLottery'
 import useTickets, { useTotalClaim } from 'hooks/useTickets'
@@ -38,9 +38,13 @@ const StyledButton = styled(Button)`
   margin-top: ${(props) => props.theme.spacing[1]}px;
 `
 
-const PrizesWonContent: React.FC = () => {
+interface PrizesWonContentProps {
+  onSuccess: () => void
+}
+
+const PrizesWonContent: React.FC<PrizesWonContentProps> = ({ onSuccess }) => {
   const [requestedClaim, setRequestedClaim] = useState(false)
-  const TranslateString = useI18n()
+  const { t } = useTranslation()
   const { claimLoading, claimAmount } = useTotalClaim()
   const { onMultiClaim } = useMultiClaimLottery()
   const tickets = useTickets()
@@ -52,12 +56,13 @@ const PrizesWonContent: React.FC = () => {
       const txHash = await onMultiClaim()
       // user rejected tx or didn't go thru
       if (txHash) {
+        onSuccess()
         setRequestedClaim(false)
       }
     } catch (e) {
       console.error(e)
     }
-  }, [onMultiClaim, setRequestedClaim])
+  }, [onMultiClaim, setRequestedClaim, onSuccess])
 
   const winnings = getBalanceNumber(claimAmount).toFixed(2)
 
@@ -67,7 +72,7 @@ const PrizesWonContent: React.FC = () => {
         <Won />
       </IconWrapper>
       <Heading as="h3" size="lg" color="secondary">
-        {TranslateString(999, 'You won!')}
+        {t('You won!')}
       </Heading>
       {claimLoading && <Loading />}
       {!claimLoading && (
@@ -77,18 +82,18 @@ const PrizesWonContent: React.FC = () => {
               {winnings}
             </Heading>
             <Heading as="h4" size="lg">
-              CAKE
+              VEGAN
             </Heading>
           </WinningsWrapper>
         </>
       )}
       <StyledCardActions>
-        <Button fullWidth disabled={requestedClaim} onClick={handleClaim}>
-          {TranslateString(999, 'Collect')}
+        <Button width="100%" disabled={requestedClaim} onClick={handleClaim}>
+          {t('Collect')}
         </Button>
       </StyledCardActions>
       <StyledButton variant="text" onClick={onPresentMyTickets}>
-        {TranslateString(432, 'View your tickets')}
+        {t('View your tickets')}
       </StyledButton>
     </StyledCardContentInner>
   )

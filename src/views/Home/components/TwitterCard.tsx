@@ -1,14 +1,8 @@
 import React from 'react'
-import { Card, CardBody, Heading, Text } from '@pancakeswap-libs/uikit'
-import BigNumber from 'bignumber.js/bignumber'
+import { Card, CardBody, Heading } from '@pancakeswap-libs/uikit'
 import styled from 'styled-components'
 import { Timeline } from 'react-twitter-widgets'
-import { getBalanceNumber } from 'utils/formatBalance'
-import { useTotalSupply, useBurnedBalance } from 'hooks/useTokenBalance'
-import useI18n from 'hooks/useI18n'
-import { getCakeAddress } from 'utils/addressHelpers'
-import CardValue from './CardValue'
-import { useFarms } from '../../../state/hooks'
+import { useTranslation } from 'contexts/Localization'
 
 const StyledTwitterCard = styled(Card)`
   margin-left: auto;
@@ -24,13 +18,13 @@ const Row = styled.div`
 `
 
 const TwitterCard = () => {
-  const TranslateString = useI18n()
+  const { t } = useTranslation()
 
   return (
     <StyledTwitterCard>
       <CardBody>
         <Heading size="xl" mb="24px">
-          {TranslateString(10003, 'Announcements')}
+          {t('Announcements')}
         </Heading>
         <Timeline
           dataSource={{
@@ -38,9 +32,9 @@ const TwitterCard = () => {
             screenName: 'veganswap',
           }}
           options={{
-            height: '300',
+            height: '250',
             chrome: 'noheader, nofooter',
-            width: '400',
+            width: '100%',
           }}
         />
       </CardBody>

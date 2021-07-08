@@ -1,11 +1,11 @@
 {
-  "short_name": "Vegan Finance",
-  "name": "Vegan Finance",
-  "description": "Farm VEGAN with LP Tokens",
+  "short_name": "VeganSwap",
+  "name": "VeganSwap",
+  "description": "Farm VEGAN with Pancake LP Tokens",
   "icons": [
     {
-      "src": "favicon.svg",
-      "type": "image/svg+xml",
+      "src": "favicon.ico",
+      "type": "image/x-icon",
       "sizes": "256x256"
     }
   ],

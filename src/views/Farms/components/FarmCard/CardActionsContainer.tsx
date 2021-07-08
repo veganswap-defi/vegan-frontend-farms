@@ -1,14 +1,16 @@
-import React, { useMemo, useState, useCallback } from 'react'
-import BigNumber from 'bignumber.js'
+import React, { useState, useCallback, useMemo } from 'react'
 import styled from 'styled-components'
-import { provider } from 'web3-core'
-import { getContract } from 'utils/erc20'
+import { provider as ProviderType } from 'web3-core'
+import BigNumber from 'bignumber.js'
+import { useLocation } from 'react-router-dom'
+import { getAddress } from 'utils/addressHelpers'
+import { getBep20Contract } from 'utils/contractHelpers'
 import { Button, Flex, Text } from '@pancakeswap-libs/uikit'
 import { Farm } from 'state/types'
-import { useFarmFromPid, useFarmFromSymbol, useFarmUser } from 'state/hooks'
-import useI18n from 'hooks/useI18n'
-import UnlockButton from 'components/UnlockButton'
+import { useTranslation } from 'contexts/Localization'
+import useWeb3 from 'hooks/useWeb3'
 import { useApprove } from 'hooks/useApprove'
+import UnlockButton from 'components/UnlockButton'
 import StakeAction from './StakeAction'
 import HarvestAction from './HarvestAction'
 
@@ -16,31 +18,44 @@ const Action = styled.div`
   padding-top: 16px;
 `
 export interface FarmWithStakedValue extends Farm {
-  apy?: BigNumber
+  apr?: number
 }
 
 interface FarmCardActionsProps {
   farm: FarmWithStakedValue
-  ethereum?: provider
+  provider?: ProviderType
   account?: string
+  addLiquidityUrl?: string
 }
 
-const CardActions: React.FC<FarmCardActionsProps> = ({ farm, ethereum, account }) => {
-  const TranslateString = useI18n()
+const CardActions: React.FC<FarmCardActionsProps> = ({ farm, account, addLiquidityUrl }) => {
+  const { t } = useTranslation()
   const [requestedApproval, setRequestedApproval] = useState(false)
-  const { pid, lpAddresses, tokenAddresses, isTokenOnly, depositFeeBP } = useFarmFromPid(farm.pid)
-  const { allowance, tokenBalance, stakedBalance, earnings } = useFarmUser(pid, account)
-  const lpAddress = lpAddresses[process.env.REACT_APP_CHAIN_ID]
-  const tokenAddress = tokenAddresses[process.env.REACT_APP_CHAIN_ID]
+  const { pid, lpAddresses, isTokenOnly, token } = farm
+  const {
+    allowance: allowanceAsString = 0,
+    tokenBalance: tokenBalanceAsString = 0,
+    stakedBalance: stakedBalanceAsString = 0,
+    earnings: earningsAsString = 0,
+  } = farm.userData || {}
+  const allowance = new BigNumber(allowanceAsString)
+  const tokenBalance = new BigNumber(tokenBalanceAsString)
+  const stakedBalance = new BigNumber(stakedBalanceAsString)
+  const earnings = new BigNumber(earningsAsString)
+  const lpAddress = getAddress(lpAddresses)
+  const tokenAddress = getAddress(token.address)
   const lpName = farm.lpSymbol.toUpperCase()
   const isApproved = account && allowance && allowance.isGreaterThan(0)
+  const web3 = useWeb3()
+  const location = useLocation()
 
   const lpContract = useMemo(() => {
     if (isTokenOnly) {
-      return getContract(ethereum as provider, tokenAddress)
+      return getBep20Contract(tokenAddress, web3)
     }
-    return getContract(ethereum as provider, lpAddress)
-  }, [ethereum, lpAddress, tokenAddress, isTokenOnly])
+
+    return getBep20Contract(lpAddress, web3)
+  }, [web3, lpAddress, tokenAddress, isTokenOnly])
 
   const { onApprove } = useApprove(lpContract)
 
@@ -61,11 +76,16 @@ const CardActions: React.FC<FarmCardActionsProps> = ({ farm, ethereum, account }
         tokenBalance={tokenBalance}
         tokenName={lpName}
         pid={pid}
-        depositFeeBP={depositFeeBP}
+        addLiquidityUrl={addLiquidityUrl}
       />
     ) : (
-      <Button mt="8px" fullWidth disabled={requestedApproval} onClick={handleApprove}>
-        {TranslateString(999, 'Approve Contract')}
+      <Button
+        mt="8px"
+        width="100%"
+        disabled={requestedApproval || location.pathname.includes('archived')}
+        onClick={handleApprove}
+      >
+        {t('Approve Contract')}
       </Button>
     )
   }
@@ -78,7 +98,7 @@ const CardActions: React.FC<FarmCardActionsProps> = ({ farm, ethereum, account }
           VEGAN
         </Text>
         <Text bold textTransform="uppercase" color="textSubtle" fontSize="12px">
-          {TranslateString(999, 'Earned')}
+          {t('Earned')}
         </Text>
       </Flex>
       <HarvestAction earnings={earnings} pid={pid} />
@@ -87,10 +107,10 @@ const CardActions: React.FC<FarmCardActionsProps> = ({ farm, ethereum, account }
           {lpName}
         </Text>
         <Text bold textTransform="uppercase" color="textSubtle" fontSize="12px">
-          {TranslateString(999, 'Staked')}
+          {t('Staked')}
         </Text>
       </Flex>
-      {!account ? <UnlockButton mt="8px" fullWidth /> : renderApprovalOrStakeButton()}
+      {!account ? <UnlockButton mt="8px" width="100%" /> : renderApprovalOrStakeButton()}
     </Action>
   )
 }

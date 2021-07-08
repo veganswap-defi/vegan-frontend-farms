@@ -1,7 +1,10 @@
 import React from 'react'
 import styled from 'styled-components'
-import useI18n from 'hooks/useI18n'
+import { useTranslation } from 'contexts/Localization'
 import { Heading, Text } from '@pancakeswap-libs/uikit'
+import { BigNumber } from 'bignumber.js'
+import { usePriceVeganBusd } from 'state/hooks'
+import CardBusdValue from '../../Home/components/CardBusdValue'
 
 export interface PrizeGridProps {
   lotteryPrizeAmount?: number
@@ -44,25 +47,30 @@ const PrizeGrid: React.FC<PrizeGridProps> = ({
   const threeMatchesAmount = +((lotteryPrizeAmount / 100) * 20).toFixed(0)
   const twoMatchesAmount = +((lotteryPrizeAmount / 100) * 10).toFixed(0)
   const burnAmount = +((lotteryPrizeAmount / 100) * 20).toFixed(0)
-  const TranslateString = useI18n()
+  const { t } = useTranslation()
+  const veganBusdPrice = usePriceVeganBusd()
+
+  const getVeganBusdValue = (amount: number) => {
+    return new BigNumber(amount).multipliedBy(veganBusdPrice).toNumber()
+  }
 
   return (
     <Grid pastDraw={pastDraw}>
       <GridItem>
         <Text fontSize="14px" color="textSubtle">
-          {TranslateString(999, 'No. Matched')}
+          {t('No. Matched')}
         </Text>
       </GridItem>
       {pastDraw && (
         <PastDrawGridItem>
           <RightAlignedText fontSize="14px" color="textSubtle">
-            {TranslateString(999, 'Winners')}
+            {t('Winners')}
           </RightAlignedText>
         </PastDrawGridItem>
       )}
       <GridItem>
         <RightAlignedText fontSize="14px" color="textSubtle">
-          {TranslateString(999, 'Prize Pot')}
+          {t('Prize Pot')}
         </RightAlignedText>
       </GridItem>
       {/* 4 matches row */}
@@ -75,7 +83,10 @@ const PrizeGrid: React.FC<PrizeGridProps> = ({
         </PastDrawGridItem>
       )}
       <GridItem>
-        <RightAlignedHeading size="md">{fourMatchesAmount.toLocaleString()}</RightAlignedHeading>
+        <RightAlignedHeading size="md">
+          {fourMatchesAmount.toLocaleString()}
+          {!pastDraw && !veganBusdPrice.eq(0) && <CardBusdValue value={getVeganBusdValue(fourMatchesAmount)} />}
+        </RightAlignedHeading>
       </GridItem>
       {/* 3 matches row */}
       <GridItem>
@@ -87,23 +98,29 @@ const PrizeGrid: React.FC<PrizeGridProps> = ({
         </PastDrawGridItem>
       )}
       <GridItem>
-        <RightAlignedText>{threeMatchesAmount.toLocaleString()}</RightAlignedText>
+        <RightAlignedText>
+          {threeMatchesAmount.toLocaleString()}
+          {!pastDraw && !veganBusdPrice.eq(0) && <CardBusdValue value={getVeganBusdValue(threeMatchesAmount)} />}
+        </RightAlignedText>
       </GridItem>
       {/* 2 matches row */}
-      <GridItem marginBottom="20px">
+      <GridItem>
         <Text>2</Text>
       </GridItem>
       {pastDraw && (
-        <PastDrawGridItem marginBottom="20px">
+        <PastDrawGridItem>
           <RightAlignedText>{twoTicketMatches}</RightAlignedText>
         </PastDrawGridItem>
       )}
-      <GridItem marginBottom="20px">
-        <RightAlignedText>{twoMatchesAmount.toLocaleString()}</RightAlignedText>
+      <GridItem>
+        <RightAlignedText>
+          {twoMatchesAmount.toLocaleString()}
+          {!pastDraw && !veganBusdPrice.eq(0) && <CardBusdValue value={getVeganBusdValue(twoMatchesAmount)} />}
+        </RightAlignedText>
       </GridItem>
       {/* Burn row */}
       <GridItem marginBottom="0">
-        <Text>{TranslateString(999, `${pastDraw ? 'Burned' : 'To burn'}`)}:</Text>
+        <Text>{t(`${pastDraw ? 'Burned' : 'To burn'}`)}:</Text>
       </GridItem>
       {pastDraw ? (
         <>

@@ -66,12 +66,12 @@ const config: MenuEntry[] = [
     items: [
       {
         label: 'Whirl Finance',
-        href: 'https://www.whirl-finance.com/',
+        href: 'https://whirlfinance.io',
       },
       {
         label: 'FlashX Ultra',
-        href: 'https://www.flashxcoinofficial.com/'
-      }
+        href: 'https://www.flashxultra.com/',
+      },
     ],
   },
   {
